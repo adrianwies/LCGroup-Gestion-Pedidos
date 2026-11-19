@@ -1,0 +1,13 @@
+.git
+.vercel
+.env
+.env.*
+imports
+artifacts
+**/bin
+**/obj
+**/node_modules
+**/dist
+*.xlsx
+*.bak
+*.pfx

@@ -1,0 +1,72 @@
+@media (max-width: 800px) {
+  html,
+  body,
+  #root {
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  body {
+    position: fixed;
+    inset: 0;
+    touch-action: pan-x pan-y;
+  }
+
+  .airy-app.top-layout {
+    width: 100%;
+    height: 100dvh;
+    min-height: 0 !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .top-navigation {
+    position: relative !important;
+    top: auto !important;
+    flex: 0 0 68px;
+    min-height: 68px;
+  }
+
+  .top-main {
+    flex: 1 1 auto;
+    min-height: 0 !important;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .login {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100dvh;
+    min-height: 0 !important;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .login form {
+    width: min(390px, 100%) !important;
+    max-height: calc(100dvh - 32px);
+    margin: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .compact-backdrop,
+  .picker-backdrop,
+  .record-picker-backdrop,
+  .entity-backdrop,
+  .review-backdrop {
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+}

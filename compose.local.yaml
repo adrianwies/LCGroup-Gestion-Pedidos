@@ -1,0 +1,46 @@
+name: aplicacion-conta-desarrollo
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment: { ACCEPT_EULA: "Y", MSSQL_PID: Developer, MSSQL_SA_PASSWORD: "${LOCAL_DB_PASSWORD}" }
+    ports: ["127.0.0.1:${LOCAL_DB_PORT:-14336}:1433"]
+    volumes: ["aplicacion-conta-desarrollo-data:/var/opt/mssql"]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment: { LOCAL_DB_PASSWORD: "${LOCAL_DB_PASSWORD}" }
+    volumes: ["./database:/database:ro", "./scripts/init-local-db.sh:/scripts/init-local-db.sh:ro"]
+    entrypoint: ["/bin/bash", "/scripts/init-local-db.sh"]
+    depends_on: { db: { condition: service_healthy } }
+    restart: "no"
+  api:
+    image: mcr.microsoft.com/dotnet/sdk:10.0
+    working_dir: /workspace/server
+    command: dotnet watch run --urls http://0.0.0.0:8080
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      ConnectionStrings__SqlServer: "Server=db;Database=APLICACION_CONTA_DESARROLLO;User Id=sa;Password=${LOCAL_DB_PASSWORD};TrustServerCertificate=True;Encrypt=False"
+      Database__CreateIfMissing: "false"
+      WebPush__VapidSubject: "${LOCAL_VAPID_SUBJECT:-}"
+      WebPush__VapidPublicKey: "${LOCAL_VAPID_PUBLIC_KEY:-}"
+      WebPush__VapidPrivateKey: "${LOCAL_VAPID_PRIVATE_KEY:-}"
+    volumes: ["./server:/workspace/server", "dotnet-packages:/root/.nuget/packages"]
+    ports: ["127.0.0.1:${LOCAL_API_PORT:-5093}:8080"]
+    depends_on: { db-init: { condition: service_completed_successfully } }
+  web:
+    image: node:22-alpine
+    working_dir: /workspace/web
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 5173"
+    environment: { VITE_API_PROXY: "http://api:8080", CHOKIDAR_USEPOLLING: "true" }
+    volumes: ["./web:/workspace/web", "web-node-modules:/workspace/web/node_modules"]
+    ports: ["127.0.0.1:${LOCAL_WEB_PORT:-5183}:5173"]
+    depends_on: [api]
+volumes:
+  aplicacion-conta-desarrollo-data:
+  dotnet-packages:
+  web-node-modules:

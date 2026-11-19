@@ -1,0 +1,70 @@
+.compact-table-scroll {
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: #91a19b #edf1ee;
+}
+
+.table-scroll-nav {
+  display: none;
+}
+
+@media (max-width: 700px) {
+  .compact-table {
+    position: relative;
+    overflow: visible !important;
+  }
+
+  .compact-table-scroll {
+    padding-bottom: 2px;
+  }
+
+  .compact-table-scroll table {
+    min-width: 760px;
+  }
+
+  .table-scroll-nav {
+    position: absolute;
+    z-index: 4;
+    left: 8px;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    pointer-events: none;
+  }
+
+  .table-scroll-nav button {
+    width: 34px !important;
+    min-width: 34px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 !important;
+    display: grid;
+    place-items: center;
+    border: 1px solid #cddbd5 !important;
+    border-radius: 50% !important;
+    background: #fff !important;
+    color: #356b5d !important;
+    box-shadow: 0 5px 13px rgba(34, 73, 62, .1) !important;
+    font-size: 23px !important;
+    line-height: 1 !important;
+    pointer-events: auto;
+  }
+
+  .table-scroll-nav button:last-child {
+    margin-left: auto;
+  }
+
+  .table-scroll-nav button:not(:disabled):active {
+    transform: scale(.94);
+  }
+
+  .table-summary {
+    position: relative;
+    z-index: 2;
+  }
+}

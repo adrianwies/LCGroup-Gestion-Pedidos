@@ -1,0 +1,1 @@
+.device-privacy{display:grid;gap:5px}.device-privacy label{display:flex;align-items:center;gap:5px;color:#5e7088;font-size:9px;white-space:nowrap}.device-privacy input{accent-color:#2e67c7}@media(max-width:800px){.device-privacy{grid-column:2}}@media(max-width:560px){.device-privacy{grid-column:1/-1}.device-privacy label{min-height:32px;white-space:normal}}
