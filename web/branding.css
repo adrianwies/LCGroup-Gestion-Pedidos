@@ -50,7 +50,7 @@ body{background:linear-gradient(135deg,#f7fafb,#edf3f6)!important;color:#26343c!
 .summary-card.accent{background:var(--lc-blue-dark)!important}.summary-card.accent b{color:#fff!important}
 .module-icon,.section-title>span,.seller-chip,.multi-code-list span,.order-count{background:var(--lc-blue-light)!important;color:var(--lc-blue)!important}
 .module-tiles>button:hover{border-color:#73afd0!important;box-shadow:0 12px 28px rgba(0,105,168,.12)!important}
-.report-progress i,.stock-bars i{background:var(--lc-blue)!important}
+.report-progress i,.stock-bars i b{background:var(--lc-blue)!important}
 .status-chart li i.accepted{background:var(--lc-blue)!important}
 table thead,.order-table th,.entity-list th,.compact-table th,.record-results th,.review-lines th{background:#edf4f7!important;color:#365566!important}
 tbody tr:hover,.order-table tbody tr:hover,.entity-list tbody tr:hover{background:var(--lc-blue-pale)!important}
@@ -146,8 +146,8 @@ html[data-theme="dark"] .account-dropdown button{background:transparent!importan
 html[data-theme="dark"] .login{background:#0c0e10!important}html[data-theme="dark"] .login form{background:#181b1e!important;border-color:#34393e!important}
 html[data-theme="dark"] .app-toast{border-color:rgba(255,255,255,.12)!important;box-shadow:0 14px 38px rgba(0,0,0,.48)!important}
 html[data-theme="dark"] :is(.empty,.settings-empty,.no-results){color:#929ba0!important}
-html[data-theme="dark"] .donut span{background:#181b1e!important;color:#edf0f2!important}html[data-theme="dark"] .donut small{color:#9fa8ad!important}
-html[data-theme="dark"] :is(.status-chart li,.stock-bars span,.stock-bars strong,.report-progress+small){color:#aeb6bb!important}html[data-theme="dark"] .report-progress{background:#30353a!important}
+html[data-theme="dark"] .donut:after{background:#181b1e!important}html[data-theme="dark"] .donut span{position:relative;z-index:2;color:#edf0f2!important}html[data-theme="dark"] .donut span b{color:#edf0f2!important}html[data-theme="dark"] .donut small{color:#9fa8ad!important}
+html[data-theme="dark"] :is(.status-chart li,.stock-bars span,.stock-bars strong,.report-progress+small){color:#c6cdd1!important}html[data-theme="dark"] .status-chart li b{color:#edf0f2!important}html[data-theme="dark"] :is(.report-progress,.stock-bars i){background:#30353a!important}
 html[data-theme="dark"] .list-tools{background:#181b1e!important;border-color:#30353a!important}html[data-theme="dark"] .order-table td{color:#cbd1d4!important}html[data-theme="dark"] .order-table td b:not(.order-number){color:#e9ecee!important}
 html[data-theme="dark"] .order-table :is(th,td):first-child{background:#181b1e!important}html[data-theme="dark"] .order-table th:first-child{background:#202428!important}
 html[data-theme="dark"] :is(.view-order,.row-action){background:#24282c!important;border:1px solid #42484d!important;color:#e7eaec!important;box-shadow:none!important}html[data-theme="dark"] :is(.view-order,.row-action):hover{background:#2c3135!important;border-color:#555c61!important}
