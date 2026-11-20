@@ -70,7 +70,7 @@ export function UsersModule() {
                 <td>
                   <b>{x.userName}</b>
                 </td>
-                <td>{x.role === "Admin" ? "Administrador" : x.role === "Approver" ? "Aprobador de pedidos" : x.role === "Billing" ? "Facturación" : "Vendedor"}</td>
+                <td>{x.role === "Admin" ? "Administrador" : x.role === "Approver" ? `Aprobación · ${x.approvalArea === "Credits" ? "Créditos" : x.approvalArea === "Commercial" ? "Comercial" : "Sin asignar"}` : x.role === "Billing" ? "Facturación" : x.role === "Warehouse" ? "Almacén" : "Vendedor"}</td>
                 <td>
                   <div className="multi-code-list">
                     {x.sellerCodes?.length
@@ -223,7 +223,7 @@ function UserForm({ user, close, saved }: { user?: any; close: () => void; saved
               <option value="Admin">Administrador</option>
             </select>
           </label>
-          {v.role === "Approver" && <label className="wide">Aprobación dinámica<small>Esta cuenta participará automáticamente en la aprobación de todas las órdenes pendientes mientras permanezca activa.</small></label>}
+          {v.role === "Approver" && <label className="wide">Responsabilidad de aprobación<select value={v.approvalArea} onChange={e=>setV({...v,approvalArea:e.target.value})} required><option value="">Seleccionar responsabilidad</option><option value="Credits">Créditos</option><option value="Commercial">Comercial</option></select><small>La responsabilidad pertenece al rol, no a la persona. Puedes reasignarla desde esta pantalla.</small></label>}
           {v.role === "Seller" && (
             <label className="wide">
               Códigos de vendedor
