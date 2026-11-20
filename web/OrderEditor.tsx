@@ -379,7 +379,6 @@ export function OrderEditor({
           close={() => setClientPicker(false)}
           choose={(row) => {
             setClient(row);
-            setSellerCode(row.sellerCode || "");
             setClientPicker(false);
           }}
         />
