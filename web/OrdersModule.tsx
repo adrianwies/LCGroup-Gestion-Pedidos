@@ -151,6 +151,42 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
   useEffect(() => {
     void load();
   }, [userFilter]);
+  useEffect(() => {
+    let active = true;
+    let refreshTimer: number | undefined;
+    const refreshVisibleOrder = async () => {
+      try {
+        const suffix = userFilter ? `?userId=${encodeURIComponent(userFilter)}` : "";
+        const ordersResponse = await fetch(`/api/workflow/orders${suffix}`);
+        if (ordersResponse.ok && active) setOrders(await ordersResponse.json());
+        if (detail?.id) {
+          const detailResponse = await fetch(`/api/workflow/orders/${detail.id}`);
+          if (detailResponse.ok && active) setDetail(await detailResponse.json());
+        }
+      } catch {
+        // La comprobacion de respaldo es silenciosa; la siguiente alerta o intervalo reintentara.
+      }
+    };
+    const scheduleRefresh = (_event?: Event) => {
+      window.clearTimeout(refreshTimer);
+      refreshTimer = window.setTimeout(() => void refreshVisibleOrder(), 80);
+    };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") scheduleRefresh();
+    };
+    const fallbackInterval = window.setInterval(scheduleRefresh, 8000);
+    window.addEventListener("app:notification", scheduleRefresh);
+    window.addEventListener("focus", scheduleRefresh);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      active = false;
+      window.clearInterval(fallbackInterval);
+      window.clearTimeout(refreshTimer);
+      window.removeEventListener("app:notification", scheduleRefresh);
+      window.removeEventListener("focus", scheduleRefresh);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [userFilter, detail?.id]);
   useEffect(() => { if ((user.role === "Admin" || user.role === "Seller") && sessionStorage.getItem("demo.newOrder")) { sessionStorage.removeItem("demo.newOrder"); setOpen(true); } }, [user.role]);
   useEffect(() => {
     if (user.role === "Admin") request("/users").then(setUsers);

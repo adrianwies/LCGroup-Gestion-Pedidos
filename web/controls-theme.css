@@ -45,3 +45,4 @@ button:focus-visible{outline:3px solid rgba(53,107,93,.2)!important;outline-offs
   .entity-list{overflow-x:auto}.entity-list table{min-width:720px}.stock-list-head{flex-direction:column;gap:9px}.stock-list-tools{padding-left:14px!important;padding-right:14px!important}
 }
 @media(max-width:420px){.mobile-title{max-width:115px;overflow:hidden;text-overflow:ellipsis}.account-trigger{min-width:72px!important;max-width:82px!important}.summary-row{grid-template-columns:1fr!important}.summary-card{min-height:65px!important}.status-chart{align-items:stretch!important;flex-direction:column}.donut{align-self:center}.review-dialog>footer>div:last-child{grid-template-columns:1fr!important}}
+@media(max-width:420px){.review-dialog>footer>div:last-child{grid-template-columns:repeat(2,minmax(0,1fr))!important}.review-dialog>footer>div:last-child .secondary{grid-column:1/-1}}
