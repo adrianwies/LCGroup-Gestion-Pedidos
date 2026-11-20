@@ -38,6 +38,7 @@ type Order = {
   status: "Pending" | "Accepted" | "Annulled";
   approvalSummary: string;
   fulfillmentStatus: "AwaitingBilling" | "Billed" | "Picking" | "Ready" | "InTransit" | "Delivered";
+  rejected: boolean;
   currentUserDecision: "" | "Approved" | "Rejected";
 };
 type Detail = {
@@ -71,6 +72,24 @@ type Detail = {
   total: number;
 };
 type ApprovalAudit = { area: string; userName: string; decision: "Approved" | "Rejected"; decidedAt: string };
+const fulfillmentLabels: Record<Order["fulfillmentStatus"], string> = {
+  AwaitingBilling: "Aceptado",
+  Billed: "Facturado",
+  Picking: "En preparación",
+  Ready: "Listo en almacén",
+  InTransit: "En tránsito",
+  Delivered: "Entregado",
+};
+function visibleOrderStatus(order: Pick<Order, "status" | "fulfillmentStatus" | "rejected">) {
+  if (order.status === "Annulled") return order.rejected ? "Rechazado" : "Cancelado";
+  if (order.status === "Pending") return "Pendiente";
+  return fulfillmentLabels[order.fulfillmentStatus] || "Aprobado";
+}
+function visibleOrderStatusClass(order: Pick<Order, "status" | "fulfillmentStatus" | "rejected">) {
+  if (order.status === "Annulled") return order.rejected ? "rejected" : "annulled";
+  if (order.status !== "Accepted") return order.status.toLowerCase();
+  return `accepted fulfillment-${order.fulfillmentStatus.toLowerCase()}`;
+}
 const request = async (path: string, init?: RequestInit) => {
   const r = await fetch("/api" + path, {
     ...init,
@@ -168,11 +187,11 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
           <b>{orders.filter(o=>o.status==="Pending").length}</b>
         </div>
         <div className="summary-card">
-          <span>Aceptados</span>
+          <span>Aceptados y procesados</span>
           <b>{orders.filter(o=>o.status==="Accepted").length}</b>
         </div>
         <div className="summary-card cancelled-summary">
-          <span>Cancelados</span>
+          <span>Rechazados o cancelados</span>
           <b>{orders.filter(o=>o.status==="Annulled").length}</b>
         </div>
       </div>
@@ -186,7 +205,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
               placeholder="Buscar por número, cliente o vendedor"
             />
           </div>
-          <div className="order-filters"><select className="order-status-filter" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="Pending">Pendientes</option><option value="Accepted">Aceptados</option><option value="Annulled">Cancelados</option></select>{user.role === "Admin" ? (
+          <div className="order-filters"><select className="order-status-filter" value={statusFilter} onChange={e=>setStatusFilter(e.target.value)}><option value="">Todos los estados</option><option value="Pending">Pendientes</option><option value="Accepted">Aceptados y procesados</option><option value="Annulled">Rechazados o cancelados</option></select>{user.role === "Admin" ? (
             <select
               className="order-user-filter"
               value={userFilter}
@@ -236,7 +255,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
                   </td>
                   <td>{o.seller}</td>
                   <td>
-                    <span className={`status-pill ${o.status.toLowerCase()}`}>{o.status === "Accepted" ? "Aceptado" : o.status === "Annulled" ? "Cancelado" : "Pendiente"}</span>
+                    <span className={`status-pill ${visibleOrderStatusClass(o)}`}>{visibleOrderStatus(o)}</span>
                     <small className="approval-progress">Aprobaciones: {o.approvalSummary}</small>
                   </td>
                   <td className="money">
