@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dashboard, NavIcon } from "./Dashboard";
 import { OrdersModule } from "./OrdersModule";
 import { ClientsModule, SellersModule, StockModule } from "./EntityModules";
@@ -17,6 +17,7 @@ const api = async (path: string, init?: RequestInit, silent = false) => {
   return data;
 };
 export function AppShell() {
+  const accountRef = useRef<HTMLDivElement>(null);
   const [user, setUser] = useState<any>(),
     [view, setView] = useState("dashboard"),
     [userMenuOpen, setUserMenuOpen] = useState(false),
@@ -27,6 +28,7 @@ export function AppShell() {
       .catch(() => {});
   }, []);
   useEffect(() => { const close = (e: KeyboardEvent) => { if (e.key === "Escape") setMobileMenuOpen(false); }; window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close); }, []);
+  useEffect(() => { const outside = (e: MouseEvent) => { if (accountRef.current && !accountRef.current.contains(e.target as Node)) setUserMenuOpen(false); }; const escape = (e: KeyboardEvent) => { if (e.key === "Escape") setUserMenuOpen(false); }; document.addEventListener("mousedown", outside); window.addEventListener("keydown", escape); return () => { document.removeEventListener("mousedown", outside); window.removeEventListener("keydown", escape); }; }, []);
   useEffect(() => { document.body.classList.toggle("compact-ui", localStorage.getItem("demo.density") === "compact"); }, []);
   useEffect(() => { if (!user) return; const url=new URL(location.href),number=url.searchParams.get("orderNumber"); if(number){sessionStorage.setItem("demo.openOrder",number);setView("orders");url.searchParams.delete("orderNumber");history.replaceState({},"",url.pathname+url.search+url.hash);window.setTimeout(()=>window.dispatchEvent(new CustomEvent("demo:open-order",{detail:number})),120)} }, [user]);
   if (!user) return <><ToastHost/><Login done={setUser} /></>;
@@ -45,14 +47,14 @@ export function AppShell() {
           {(user.role === "Admin" || user.role === "Seller") && <button onClick={() => navigateTo("clients")} className={view === "clients" ? "on" : ""}><NavIcon name="clients" size={16}/><span>Clientes</span></button>}
           {user.role === "Admin" && <button onClick={() => navigateTo("sellers")} className={view === "sellers" ? "on" : ""}><NavIcon name="clients" size={16}/><span>Vendedores</span></button>}
           {user.role === "Admin" && <button onClick={() => navigateTo("users")} className={view === "users" ? "on" : ""}><NavIcon name="clients" size={16}/><span>Usuarios</span></button>}
-          {user.role === "Admin" && <button onClick={() => navigateTo("stock")} className={view === "stock" ? "on" : ""}><NavIcon name="stock" size={16}/><span>Stock</span></button>}
+          {(user.role === "Admin" || user.role === "Seller") && <button onClick={() => navigateTo("stock")} className={view === "stock" ? "on" : ""}><NavIcon name="stock" size={16}/><span>Stock</span></button>}
         </nav>
         <div className="top-actions">
           <NotificationBell onOpenOrder={(number)=>{sessionStorage.setItem("demo.openOrder",number);setView("orders");window.setTimeout(()=>window.dispatchEvent(new CustomEvent("demo:open-order",{detail:number})),50)}} />
           <button className={`top-settings ${view === "settings" ? "on" : ""}`} onClick={() => navigateTo("settings")} aria-label="Abrir configuración" title="Configuración"><NavIcon name="settings" size={20}/></button>
-          <div className="account-menu">
-            <button className="account-trigger" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-expanded={userMenuOpen}>
-              <span>{user.user}</span><small>{user.role === "Admin" ? "Administrador" : user.role === "Approver" ? "Aprobador" : user.role === "Billing" ? "Facturación" : "Vendedor"}</small><b>⌄</b>
+          <div className="account-menu" ref={accountRef}>
+            <button className="account-trigger" onClick={() => setUserMenuOpen(!userMenuOpen)} aria-expanded={userMenuOpen} aria-label={`Cuenta de ${user.user}`}>
+              <span className="account-avatar" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 21v-1.5a7.5 7.5 0 0 1 15 0V21"/></svg></span><span className="account-identity"><strong>{user.user}</strong><small>{user.role === "Admin" ? "Administrador" : user.role === "Approver" ? "Aprobador" : user.role === "Billing" ? "Facturación" : user.role === "Warehouse" ? "Almacén" : "Vendedor"}</small></span><svg className="account-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
             </button>
             {userMenuOpen && <div className="account-dropdown">
               <div><b>{user.user}</b><small>Sesión activa</small></div>
@@ -74,7 +76,7 @@ export function AppShell() {
           ) : view === "users" ? (
             <UsersModule />
           ) : view === "stock" ? (
-            <StockModule />
+            <StockModule role={user.role} />
           ) : (
             <SettingsModule user={user} onLogout={logout} />
           )}

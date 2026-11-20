@@ -9,6 +9,7 @@ import './responsive-filters.css';
 import './mobile-viewport.css';
 import './mobile-compact.css';
 import './branding.css';
+import './header-refined.css';
 import { initializeTheme } from './theme';
 initializeTheme();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

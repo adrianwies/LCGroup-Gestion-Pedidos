@@ -169,7 +169,7 @@ export function SellersModule() {
     </section>
   );
 }
-export function StockModule() {
+export function StockModule({ role }: { role: string }) {
   const [file, setFile] = useState<File>(),
     [importOpen, setImportOpen] = useState(false),
     [msg, setMsg] = useState(""),
@@ -227,9 +227,9 @@ export function StockModule() {
         <div>
           <span>INVENTARIO</span>
           <h1>Stock</h1>
-          <p>Consulta existencias y actualiza el inventario desde el formato oficial.</p>
+          <p>Consulta las existencias disponibles.</p>
         </div>
-        <div><button onClick={() => { setError(""); setImportOpen(true); }}>⇧ Importar Excel</button></div>
+        {role === "Admin" && <div><button className="primary-action" onClick={() => { setError(""); setImportOpen(true); }}>⇧ Importar Excel</button></div>}
       </div>
       <div className="stock-summary" aria-label="Resumen de inventario">
         <article><span>Productos cargados</span><strong>{products.length.toLocaleString("es-PE")}</strong></article>
@@ -266,7 +266,7 @@ export function StockModule() {
           {loading && <div className="stock-empty">Cargando inventario...</div>}
         </div>
       </div>
-      {importOpen && <div className="entity-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setImportOpen(false); }}>
+      {role === "Admin" && importOpen && <div className="entity-backdrop" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget && !busy) setImportOpen(false); }}>
         <div className="entity-dialog stock-import-dialog" role="dialog" aria-modal="true" aria-labelledby="stock-import-title">
           <header><div><h2 id="stock-import-title">Importar stock</h2><p>Reemplaza el inventario vigente utilizando el archivo Excel oficial.</p></div><button aria-label="Cerrar" disabled={busy} onClick={() => setImportOpen(false)}>×</button></header>
           <div className="stock-import-body">
@@ -306,7 +306,7 @@ function Header({
             ⇧ Importar Excel
           </button>
         )}
-        <button onClick={add}>＋ Nuevo</button>
+        <button className="primary-action" onClick={add}>＋ Nuevo</button>
       </div>
     </div>
   );

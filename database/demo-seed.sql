@@ -54,12 +54,6 @@ SELECT u.Id,s.Code FROM dbo.Users u CROSS JOIN dbo.Sellers s
 WHERE u.UserName=N'vendedor' AND s.Code IN('VEND-001','VEND-002','VEND-003','VEND-004','VEND-005')
 AND NOT EXISTS(SELECT 1 FROM dbo.UserSellerCodes x WHERE x.UserId=u.Id AND x.SellerCode=s.Code);
 
-DELETE oa FROM dbo.OrderApprovals oa JOIN dbo.Orders o ON o.Id=oa.OrderId WHERE o.Number LIKE 'DEMO-%';
-DELETE nr FROM dbo.NotificationReads nr JOIN dbo.Notifications n ON n.Id=nr.NotificationId WHERE n.Type='Demo';
-DELETE FROM dbo.Notifications WHERE Type='Demo';
-DELETE oi FROM dbo.OrderItems oi JOIN dbo.Orders o ON o.Id=oi.OrderId WHERE o.Number LIKE 'DEMO-%';
-DELETE FROM dbo.Orders WHERE Number LIKE 'DEMO-%';
-
 DECLARE @seller int=(SELECT Id FROM dbo.Users WHERE UserName=N'vendedor');
 DECLARE @alfredo int=(SELECT Id FROM dbo.Users WHERE UserName=N'alfredo');
 DECLARE @credits int=(SELECT Id FROM dbo.Users WHERE UserName=N'creditos');
@@ -67,6 +61,8 @@ DECLARE @client1 int=(SELECT Id FROM dbo.Clients WHERE Code='CLI-001');
 DECLARE @client2 int=(SELECT Id FROM dbo.Clients WHERE Code='CLI-002');
 IF @seller IS NULL OR @alfredo IS NULL OR @credits IS NULL THROW 51001,'No se pudieron preparar las cuentas demo.',1;
 
+IF NOT EXISTS(SELECT 1 FROM dbo.Orders WHERE Number IN ('DEMO-APROBADA-001','DEMO-RECHAZADA-001'))
+BEGIN
 INSERT dbo.Orders(Number,ClientId,SellerId,ClientName,ClientCode,ClientRuc,FiscalAddress,DeliveryAddress,DeliveryNotes,PaymentTerms,CreatedAt,SellerCode,SequenceYear,SequenceMonth,SequenceNo,Status,StockRestored)
 SELECT 'DEMO-APROBADA-001',@client1,@seller,Name,Code,Ruc,FiscalAddress,N'Dirección de entrega 1',N'Orden ficticia aprobada.',N'Contado',DATEADD(minute,-45,SYSUTCDATETIME()),'VEND-001',2099,1,1,'Accepted',0 FROM dbo.Clients WHERE Id=@client1;
 DECLARE @approved int=CONVERT(int,SCOPE_IDENTITY());
@@ -84,6 +80,7 @@ INSERT dbo.OrderApprovals(OrderId,ApprovalArea,ApproverUserId,Decision,DecidedAt
 INSERT dbo.Notifications(Type,Title,Message,Audience,ActorUserId,ActionUrl,DeduplicationKey,CreatedAt) VALUES
  ('Demo',N'Orden aprobada',N'La orden DEMO-APROBADA-001 fue aprobada.',N'All',@credits,N'/orders/DEMO-APROBADA-001','demo-order-approved-001',DATEADD(minute,-25,SYSUTCDATETIME())),
  ('Demo',N'Orden rechazada',N'La orden DEMO-RECHAZADA-001 fue rechazada y su stock restaurado.',N'All',@credits,N'/orders/DEMO-RECHAZADA-001','demo-order-rejected-001',DATEADD(minute,-10,SYSUTCDATETIME()));
+END;
 
 COMMIT TRANSACTION;
 PRINT N'Datos demo insertados. Las cuentas existentes no fueron modificadas.';
