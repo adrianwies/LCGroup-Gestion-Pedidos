@@ -207,7 +207,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
   );
   const reject=async(reason:string)=>{if(!rejectTarget)return;try{await request(`/workflow/orders/${rejectTarget}/decision`,{method:"POST",body:JSON.stringify({decision:"Rejected",reason})});showToast("Pedido rechazado y motivo registrado.","warning");setRejectTarget(undefined);setDetail(undefined);await load()}catch(e:any){setMessage(e.message)}};
   const bill=async(invoiceNumber:string,file:File)=>{if(!invoiceTarget)return;const form=new FormData();form.append("invoiceNumber",invoiceNumber);form.append("file",file);const response=await fetch(`/api/workflow/orders/${invoiceTarget.id}/invoice`,{method:"POST",body:form});const payload=await response.json().catch(()=>null);if(!response.ok)throw Error(payload?.message||"No se pudo guardar la factura.");showToast("Factura PDF guardada y pedido facturado.","success");setInvoiceTarget(undefined);await load()};
-  const decide=async(id:number,decision:"Approved"|"Rejected")=>{try{await request(`/workflow/orders/${id}/decision`,{method:"POST",body:JSON.stringify({decision})});showToast(decision==="Approved"?"Aprobación registrada.":"Orden cancelada y stock restaurado.",decision==="Approved"?"success":"warning");await load()}catch(e:any){setMessage(e.message)}};
+  const decide=async(id:number,decision:"Approved"|"Rejected")=>{if(decision==="Rejected"){setRejectTarget(id);return}try{await request(`/workflow/orders/${id}/decision`,{method:"POST",body:JSON.stringify({decision})});showToast("Aprobación registrada.","success");await load()}catch(e:any){setMessage(e.message)}};
   const advance=async(id:number,status:string)=>{try{await request(`/workflow/orders/${id}/fulfillment`,{method:"POST",body:JSON.stringify({status})});showToast("Estado actualizado.","success");await load();return true}catch(e:any){setMessage(e.message);return false}};
   return (
     <section className="module-page">
@@ -321,7 +321,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
       </div>
       {detail&&<DynamicOrderReview detail={detail} close={()=>setDetail(undefined)} canViewInvoice={["Admin","Billing","Warehouse","Seller"].includes(user.role)} decide={user.role==="Approver"&&detail.status==="Pending"&&!detail.currentUserDecision?async decision=>{if(decision==="Rejected"){setRejectTarget(detail.id);return}await decide(detail.id,decision);setDetail(undefined)}:undefined}/>} 
       {invoiceTarget&&<InvoiceDialog order={invoiceTarget} close={()=>setInvoiceTarget(undefined)} save={bill}/>} 
-      {rejectTarget&&<RejectDialog close={()=>setRejectTarget(undefined)} save={reject}/>} 
+      {rejectTarget!==undefined&&<RejectDialog close={()=>setRejectTarget(undefined)} save={reject}/>} 
       {open && (
         <OrderModal
           close={() => setOpen(false)}
