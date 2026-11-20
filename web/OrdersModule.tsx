@@ -39,6 +39,8 @@ type Order = {
   approvalSummary: string;
   fulfillmentStatus: "AwaitingBilling" | "Billed" | "Picking" | "Ready" | "InTransit" | "Delivered";
   rejected: boolean;
+  approvalCount: number;
+  correctionPending: boolean;
   currentUserDecision: "" | "Approved" | "Rejected";
 };
 type Detail = {
@@ -62,6 +64,7 @@ type Detail = {
   alfredoApproval?: string;
   creditsApproval?: string;
   commercialApproval?: string;
+  correction?: { id:number; reason:string; requestedBy:string; createdAt:string; items:{productCode:string;quantity:number}[] };
   items: {
     productCode: string;
     description: string;
@@ -152,7 +155,8 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
     [expanded, setExpanded] = useState<number | null>(null),
     [invoiceTarget, setInvoiceTarget] = useState<Order>(),
     [rejectTarget, setRejectTarget] = useState<number>(),
-    [commercialEdit, setCommercialEdit] = useState(false);
+    [commercialEdit, setCommercialEdit] = useState(false),
+    [correctionTarget, setCorrectionTarget] = useState<Detail>();
   const load = () =>
     request("/workflow/orders" + (userFilter ? `?userId=${userFilter}` : "")).then(
       setOrders,
@@ -211,8 +215,10 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
     [orders, query, statusFilter, user.role],
   );
   const reject=async(reason:string)=>{if(!rejectTarget)return;try{await request(`/workflow/orders/${rejectTarget}/decision`,{method:"POST",body:JSON.stringify({decision:"Rejected",reason})});showToast("Pedido rechazado y motivo registrado.","warning");setRejectTarget(undefined);setDetail(undefined);await load()}catch(e:any){setMessage(e.message)}};
-  const resolveObserved=async(action:"ApproveObserved"|"ConfirmRejection")=>{if(!detail)return;try{await request(`/workflow/orders/${detail.id}/decision`,{method:"POST",body:JSON.stringify({decision:action})});showToast(action==="ApproveObserved"?"Observación revertida y aprobación registrada.":"Rechazo confirmado y pedido cancelado.",action==="ApproveObserved"?"success":"warning");setDetail(undefined);await load()}catch(e:any){setMessage(e.message)}};
-  const saveCommercialItems=async(items:{productCode:string;quantity:number;unitPrice:number;saleType:string}[],reason:string)=>{if(!detail)return;await request(`/workflow/orders/${detail.id}/commercial-items`,{method:"PUT",body:JSON.stringify({items,reason})});showToast("Pedido actualizado. Créditos debe evaluarlo nuevamente.","success");setCommercialEdit(false);setDetail(await request(`/workflow/orders/${detail.id}`));await load()};
+  const resolveObserved=async(id:number,action:"ApproveObserved"|"ConfirmRejection")=>{try{await request(`/workflow/orders/${id}/decision`,{method:"POST",body:JSON.stringify({decision:action})});showToast(action==="ApproveObserved"?"Observación revertida y aprobación registrada.":"Rechazo confirmado y pedido cancelado.",action==="ApproveObserved"?"success":"warning");setDetail(undefined);await load()}catch(e:any){setMessage(e.message)}};
+  const saveCommercialItems=async(items:{productCode:string;quantity:number;unitPrice:number;saleType:string}[],reason:string)=>{if(!detail)return;await request(`/workflow/orders/${detail.id}/items`,{method:"PUT",body:JSON.stringify({items,reason})});showToast("Pedido actualizado y enviado nuevamente a aprobación.","success");setCommercialEdit(false);setDetail(undefined);await load()};
+  const openLineEditor=async(id:number)=>{const d=await request(`/workflow/orders/${id}`);setDetail(d);setCommercialEdit(true)};
+  const requestCorrection=async(items:{productCode:string;quantity:number}[],reason:string)=>{if(!correctionTarget)return;await request(`/workflow/orders/${correctionTarget.id}/correction-request`,{method:"POST",body:JSON.stringify({items,reason})});showToast("Corrección registrada. El despacho quedó suspendido.","warning");setCorrectionTarget(undefined);await load()};
   const bill=async(invoiceNumber:string,file:File)=>{if(!invoiceTarget)return;const form=new FormData();form.append("invoiceNumber",invoiceNumber);form.append("file",file);const response=await fetch(`/api/workflow/orders/${invoiceTarget.id}/invoice`,{method:"POST",body:form});const payload=await response.json().catch(()=>null);if(!response.ok)throw Error(payload?.message||"No se pudo guardar la factura.");showToast("Factura PDF guardada y pedido facturado.","success");setInvoiceTarget(undefined);await load()};
   const decide=async(id:number,decision:"Approved"|"Rejected")=>{if(decision==="Rejected"){setRejectTarget(id);return}try{await request(`/workflow/orders/${id}/decision`,{method:"POST",body:JSON.stringify({decision})});showToast("Aprobación registrada.","success");await load()}catch(e:any){setMessage(e.message)}};
   const advance=async(id:number,status:string)=>{try{await request(`/workflow/orders/${id}/fulfillment`,{method:"POST",body:JSON.stringify({status})});showToast("Estado actualizado.","success");await load();return true}catch(e:any){setMessage(e.message);return false}};
@@ -311,7 +317,14 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
                     <b>S/ {o.total.toFixed(2)}</b>
                   </td>
                   <td>
-                    <div className="document-actions" onClick={e=>e.stopPropagation()}><button className="view-order" onClick={async()=>setDetail(await request(`/workflow/orders/${o.id}`))}>Ver detalle</button>{user.role === "Billing" && o.status === "Accepted" && (o.fulfillmentStatus === "AwaitingBilling" ? <button className="bill-order" onClick={()=>setInvoiceTarget(o)}>Facturar</button> : <span className="fulfillment-tag">Facturado</span>)}{user.role === "Warehouse" && <WarehouseUpdate key={`${o.id}-${o.fulfillmentStatus}`} order={o} save={advance}/>}{o.status === "Accepted" && user.role !== "Approver" && user.role !== "Warehouse" ? <><button className="pdf-button document-icon" title="Imprimir pedido" aria-label={`Imprimir pedido ${o.number}`} onClick={() => void printProfessionalOrder(o.id,request)}><ActionIcon name="print"/></button><button className="pdf-button document-icon" title="Guardar PDF" aria-label={`Guardar PDF del pedido ${o.number}`} onClick={() => void saveProfessionalOrderPdf(o.id,request)}><ActionIcon name="download"/></button></> : user.role === "Approver" && o.status === "Pending" && !o.currentUserDecision ? <div className="approval-actions"><button onClick={()=>decide(o.id,"Approved")}>Aprobar</button><button className="reject-order" onClick={()=>setRejectTarget(o.id)}>Rechazar</button></div> : user.role !== "Warehouse" && <span className="print-locked">{o.status === "Accepted" ? "Aprobación completada" : o.currentUserDecision ? "Decisión registrada" : "Esperando aprobación"}</span>}</div>
+                    <div className="document-actions" onClick={e=>e.stopPropagation()}>
+                      <button className="view-order" onClick={async()=>setDetail(await request(`/workflow/orders/${o.id}`))}>Ver detalle</button>
+                      {((user.role==="Approver"&&user.approvalArea==="Commercial"&&o.status!=="Annulled"&&o.fulfillmentStatus==="AwaitingBilling")||(user.role==="Seller"&&o.status==="Pending"&&o.approvalCount===0))&&<button className="document-icon edit-order" title="Editar productos" aria-label={`Editar productos de ${o.number}`} onClick={()=>void openLineEditor(o.id)}><ActionIcon name="edit"/></button>}
+                      {user.role==="Billing"&&o.status==="Accepted"&&(o.correctionPending?<span className="print-locked">Esperando corrección Comercial</span>:o.fulfillmentStatus==="AwaitingBilling"?<button className="bill-order" onClick={()=>setInvoiceTarget(o)}>Facturar</button>:<span className="fulfillment-tag">Facturado</span>)}
+                      {user.role==="Warehouse"&&<><WarehouseUpdate key={`${o.id}-${o.fulfillmentStatus}`} order={o} save={advance}/>{["Billed","Picking","Ready"].includes(o.fulfillmentStatus)&&<button className="correction-order" onClick={async()=>setCorrectionTarget(await request(`/workflow/orders/${o.id}`))}>Solicitar corrección</button>}</>}
+                      {user.role==="Approver"&&user.approvalArea==="Credits"&&o.status==="Observed"?<div className="approval-actions observed-actions"><button onClick={()=>void resolveObserved(o.id,"ApproveObserved")}>Cambiar a aprobado</button><button className="reject-order" onClick={()=>void resolveObserved(o.id,"ConfirmRejection")}>Confirmar rechazo</button></div>:user.role==="Approver"&&o.status==="Pending"&&!o.currentUserDecision?<div className="approval-actions"><button onClick={()=>decide(o.id,"Approved")}>Aprobar</button><button className="reject-order" onClick={()=>setRejectTarget(o.id)}>Rechazar</button></div>:null}
+                      {o.status==="Accepted"&&user.role!=="Approver"&&user.role!=="Warehouse"&&<><button className="pdf-button document-icon" title="Imprimir pedido" aria-label={`Imprimir pedido ${o.number}`} onClick={()=>void printProfessionalOrder(o.id,request)}><ActionIcon name="print"/></button><button className="pdf-button document-icon" title="Guardar PDF" aria-label={`Guardar PDF del pedido ${o.number}`} onClick={()=>void saveProfessionalOrderPdf(o.id,request)}><ActionIcon name="download"/></button></>}
+                    </div>
                   </td>
                 </tr>{expanded === o.id && <tr className="tracking-row"><td colSpan={7}><OrderTracking order={o}/></td></tr>}</Fragment>
               ))}
@@ -327,9 +340,8 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
         </HorizontalScroller>
       </div>
       {detail&&<DynamicOrderReview detail={detail} close={()=>setDetail(undefined)} canViewInvoice={["Admin","Billing","Warehouse","Seller"].includes(user.role)} decide={user.role==="Approver"&&detail.status==="Pending"&&!detail.currentUserDecision?async decision=>{if(decision==="Rejected"){setRejectTarget(detail.id);return}await decide(detail.id,decision);setDetail(undefined)}:undefined}/>} 
-      {detail&&user.role==="Approver"&&user.approvalArea==="Credits"&&detail.status==="Observed"&&<div className="detail-workflow-actions observed"><b>Pedido observado por Créditos</b><button onClick={()=>void resolveObserved("ApproveObserved")}>Cambiar a aprobado</button><button className="danger-action" onClick={()=>void resolveObserved("ConfirmRejection")}>Confirmar rechazo</button></div>}
-      {detail&&user.role==="Approver"&&user.approvalArea==="Commercial"&&detail.status!=="Annulled"&&<div className="detail-workflow-actions commercial"><b>Revisión Comercial</b><button onClick={()=>setCommercialEdit(true)}>Editar cantidades y precios</button></div>}
       {detail&&commercialEdit&&<CommercialEditDialog detail={detail} close={()=>setCommercialEdit(false)} save={saveCommercialItems}/>} 
+      {correctionTarget&&<CorrectionRequestDialog detail={correctionTarget} close={()=>setCorrectionTarget(undefined)} save={requestCorrection}/>} 
       {invoiceTarget&&<InvoiceDialog order={invoiceTarget} close={()=>setInvoiceTarget(undefined)} save={bill}/>} 
       {rejectTarget!==undefined&&<RejectDialog close={()=>setRejectTarget(undefined)} save={reject}/>} 
       {open && (
@@ -347,9 +359,15 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
 }
 
 function CommercialEditDialog({detail,close,save}:{detail:Detail;close:()=>void;save:(items:{productCode:string;quantity:number;unitPrice:number;saleType:string}[],reason:string)=>Promise<void>}) {
-  const[rows,setRows]=useState(()=>detail.items.map(x=>({productCode:x.productCode,description:x.description,quantity:x.quantity,unitPrice:x.unitPrice,saleType:x.saleType||"Unidad",pack:x.pack||1})));const[reason,setReason]=useState("");const[busy,setBusy]=useState(false);const[error,setError]=useState("");
+  const[rows,setRows]=useState(()=>detail.items.map(x=>({productCode:x.productCode,description:x.description,quantity:detail.correction?.items.find(i=>i.productCode===x.productCode)?.quantity??x.quantity,unitPrice:x.unitPrice,saleType:x.saleType||"Unidad",pack:x.pack||1})));const[reason,setReason]=useState(detail.correction?.reason||"");const[busy,setBusy]=useState(false);const[error,setError]=useState("");
   const submit=async(e:React.FormEvent)=>{e.preventDefault();if(rows.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0||x.unitPrice<0)){setError("Las cantidades deben ser enteras positivas y los precios no negativos.");return}setBusy(true);setError("");try{await save(rows.map(({productCode,quantity,unitPrice,saleType})=>({productCode,quantity,unitPrice,saleType})),reason)}catch(ex:any){setError(ex.message)}finally{setBusy(false)}};
   return <div className="workflow-modal-backdrop"><form className="workflow-modal commercial-edit-modal" onSubmit={submit}><header><div><span>COMERCIAL</span><h2>Editar pedido</h2><p>{detail.number} · al guardar, Créditos deberá evaluar nuevamente.</p></div><button type="button" onClick={close} disabled={busy}>×</button></header><div className="workflow-modal-body"><div className="commercial-edit-lines">{rows.map((row,index)=><article key={row.productCode}><div><b>{row.description}</b><small>{row.productCode} · Pack {row.pack}</small></div><label>Cantidad<input type="number" min="1" step="1" value={row.quantity} onChange={e=>setRows(rows.map((x,i)=>i===index?{...x,quantity:Number(e.target.value)}:x))}/></label><label>Venta<select value={row.saleType} onChange={e=>setRows(rows.map((x,i)=>i===index?{...x,saleType:e.target.value}:x))}><option value="Unidad">Unidad</option><option value="Caja">Caja</option></select></label><label>Precio<input type="number" min="0" step="0.01" value={row.unitPrice} onChange={e=>setRows(rows.map((x,i)=>i===index?{...x,unitPrice:Number(e.target.value)}:x))}/></label><strong>S/ {(row.quantity*row.unitPrice).toFixed(2)}</strong></article>)}</div><label>Motivo del cambio<textarea value={reason} onChange={e=>setReason(e.target.value)} maxLength={300} rows={2} placeholder="Describe brevemente el ajuste realizado"/></label>{error&&<div className="workflow-error">{error}</div>}<div className="commercial-edit-total">Nuevo total <b>S/ {rows.reduce((sum,x)=>sum+x.quantity*x.unitPrice,0).toFixed(2)}</b></div></div><footer><button type="button" className="secondary" onClick={close} disabled={busy}>Cancelar</button><button disabled={busy}>{busy?"Guardando...":"Guardar cambios"}</button></footer></form></div>;
+}
+
+function CorrectionRequestDialog({detail,close,save}:{detail:Detail;close:()=>void;save:(items:{productCode:string;quantity:number}[],reason:string)=>Promise<void>}) {
+  const[rows,setRows]=useState(()=>detail.items.map(x=>({productCode:x.productCode,description:x.description,quantity:x.quantity})));const[reason,setReason]=useState("");const[busy,setBusy]=useState(false);const[error,setError]=useState("");
+  const submit=async(e:React.FormEvent)=>{e.preventDefault();if(reason.trim().length<3){setError("Indica el motivo de la diferencia física.");return}if(rows.some(x=>!Number.isInteger(x.quantity)||x.quantity<=0)){setError("Las cantidades físicas deben ser enteras y positivas.");return}setBusy(true);setError("");try{await save(rows.map(({productCode,quantity})=>({productCode,quantity})),reason.trim())}catch(ex:any){setError(ex.message)}finally{setBusy(false)}};
+  return <div className="workflow-modal-backdrop"><form className="workflow-modal correction-modal" onSubmit={submit}><header><div><span>ALMACÉN</span><h2>Solicitar corrección de factura</h2><p>{detail.number} · registra las cantidades físicas verificadas.</p></div><button type="button" onClick={close} disabled={busy}>×</button></header><div className="workflow-modal-body"><div className="correction-lines">{rows.map((row,index)=><label key={row.productCode}><span><b>{row.description}</b><small>{row.productCode}</small></span><input type="number" min="1" step="1" value={row.quantity} onChange={e=>setRows(rows.map((x,i)=>i===index?{...x,quantity:Number(e.target.value)}:x))}/></label>)}</div><label>Motivo obligatorio<textarea value={reason} onChange={e=>setReason(e.target.value)} maxLength={500} rows={3} placeholder="Describe la diferencia encontrada"/></label><small>Se suspenderá el despacho y la factura actual quedará como reemplazada.</small>{error&&<div className="workflow-error">{error}</div>}</div><footer><button type="button" className="secondary" onClick={close} disabled={busy}>Cancelar</button><button disabled={busy||reason.trim().length<3}>{busy?"Registrando...":"Solicitar corrección"}</button></footer></form></div>;
 }
 
 function InvoiceDialog({order,close,save}:{order:Order;close:()=>void;save:(invoiceNumber:string,file:File)=>Promise<void>}) {
@@ -371,7 +389,7 @@ const warehouseStages: Record<string, { label: string; next?: string; nextLabel?
   InTransit: { label: "En ruta", next: "Delivered", nextLabel: "Entregado" },
   Delivered: { label: "Entregado" },
 };
-function ActionIcon({name}:{name:"print"|"download"}) { return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{name==="print"?<><path d="M6 9V3h12v6M6 17H4V9h16v8h-2M6 14h12v7H6z"/><path d="M17 11h.01"/></>:<><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M4 16v4h16v-4"/></>}</svg> }
+function ActionIcon({name}:{name:"print"|"download"|"edit"}) { return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{name==="print"?<><path d="M6 9V3h12v6M6 17H4V9h16v8h-2M6 14h12v7H6z"/><path d="M17 11h.01"/></>:name==="edit"?<><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></>:<><path d="M12 3v12m-4-4 4 4 4-4"/><path d="M4 16v4h16v-4"/></>}</svg> }
 function WarehouseUpdate({order,save}:{order:Order;save:(id:number,status:string)=>Promise<boolean>}) {
   const stage=warehouseStages[order.fulfillmentStatus];
   const [selected,setSelected]=useState("");
