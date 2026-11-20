@@ -174,7 +174,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") scheduleRefresh();
     };
-    const fallbackInterval = window.setInterval(scheduleRefresh, 8000);
+    const fallbackInterval = window.setInterval(scheduleRefresh, 5000);
     window.addEventListener("app:notification", scheduleRefresh);
     window.addEventListener("focus", scheduleRefresh);
     document.addEventListener("visibilitychange", refreshWhenVisible);
@@ -292,7 +292,7 @@ export function OrdersModule({ user = { role: "Seller" } }: { user?: any }) {
                   <td>{o.seller}</td>
                   <td>
                     <span className={`status-pill ${visibleOrderStatusClass(o)}`}>{visibleOrderStatus(o)}</span>
-                    <small className="approval-progress">Aprobaciones: {o.approvalSummary}</small>
+                    <small className="approval-progress" aria-live="polite">Aprobaciones: {o.approvalSummary}</small>
                   </td>
                   <td className="money">
                     <b>S/ {o.total.toFixed(2)}</b>
@@ -362,7 +362,7 @@ function OrderTracking({order}:{order:Order}) {
 
 function DynamicOrderReview({detail:d,close,decide}:{detail:Detail;close:()=>void;decide?:((x:"Approved"|"Rejected")=>void)}){
  const[history,setHistory]=useState<ApprovalAudit[]>([]);
- useEffect(()=>{request(`/workflow/orders/${d.id}/history`).then(setHistory).catch(()=>setHistory([]))},[d.id]);
+ useEffect(()=>{request(`/workflow/orders/${d.id}/history`).then(setHistory).catch(()=>setHistory([]))},[d.id,d.approvalSummary]);
  const label=(s?:string)=>s==="Accepted"?"Aceptado":s==="Annulled"?"Cancelado":"Pendiente";
  return <div className="review-backdrop" role="dialog" aria-modal="true"><div className="review-dialog"><header><div><span>REVISIÓN DE PEDIDO</span><h2>{d.number}</h2><p>Revisa todos los datos y el registro de decisiones.</p></div><button onClick={close}>×</button></header><div className="review-body"><div className="review-status"><span className={`status-pill ${(d.status||"").toLowerCase()}`}>{label(d.status)}</span><div><b>Aprobaciones completadas</b><b>{d.approvalSummary||"0/0"}</b></div></div><div className="approval-history"><div className="approval-history-title"><b>Registro de aprobadores</b><small>Decisiones guardadas con usuario, fecha y hora</small></div>{history.length?<div className="approval-history-list">{history.map(x=><div key={`${x.userName}-${x.decidedAt}`}><span className={x.decision.toLowerCase()}>{x.decision==="Approved"?"Aprobado":"Rechazado"}</span><b>{x.userName}</b><small>Usuario aprobador</small><time>{formatLimaDateTime(x.decidedAt)}</time></div>)}</div>:<p className="approval-history-empty">Aún no se registraron decisiones.</p>}</div><section className="review-info"><div><span>Cliente</span><b>{d.client}</b></div><div><span>Código de cliente</span><b>{d.clientCode}</b></div><div><span>RUC</span><b>{d.ruc}</b></div><div><span>Fecha</span><b>{formatLimaDateTime(d.createdAt)}</b></div><div><span>Vendedor</span><b>{d.seller}</b></div><div><span>Código vendedor</span><b>{d.sellerCode||d.seller}</b></div><div className="wide"><span>Dirección fiscal</span><b>{d.fiscalAddress||"—"}</b></div><div className="wide"><span>Dirección de entrega</span><b>{d.deliveryAddress||"—"}</b></div><div><span>Forma de pago</span><b>{d.paymentTerms||"—"}</b></div><div className="wide"><span>Observaciones</span><b>{d.deliveryNotes||"Sin observaciones"}</b></div></section><HorizontalScroller className="review-lines"><table><thead><tr><th>Código</th><th>Descripción</th><th>Presentación</th><th>Cantidad</th><th>Precio unit.</th><th>Importe</th></tr></thead><tbody>{d.items.map(x=><tr key={x.productCode}><td><b>{x.productCode}</b></td><td>{x.description}</td><td>{(x as any).size||"—"}</td><td>{x.quantity}</td><td>S/ {x.unitPrice.toFixed(2)}</td><td><b>S/ {x.amount.toFixed(2)}</b></td></tr>)}</tbody></table></HorizontalScroller></div><footer><div><span>TOTAL</span><b>S/ {d.total.toFixed(2)}</b></div><div><button className="secondary" onClick={close}>Cerrar</button>{decide&&<><button className="review-reject" onClick={()=>decide("Rejected")}>Rechazar</button><button onClick={()=>decide("Approved")}>Aprobar orden</button></>}</div></footer></div></div>
 }
